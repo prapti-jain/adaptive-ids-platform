@@ -1,0 +1,22 @@
+# AIDTIP backend on Render (optional IaC).
+# Manual setup steps are also documented in docs/deployment.md.
+
+services:
+  - type: web
+    name: aidtip-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: RULES_CONFIG_PATH
+        value: backend/config/rules.yaml
+      - key: LOG_LEVEL
+        value: INFO
+      - key: PYTHON_VERSION
+        value: "3.11.9"

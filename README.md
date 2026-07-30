@@ -63,6 +63,8 @@ pytest
 
 `docker-compose.yml`, `backend/Dockerfile`, and `frontend/Dockerfile` describe a Postgres + API + Vite stack for environments **with Docker and network access**. They are **documented but unverified** on restricted office laptops without admin rights / Docker Desktop. Prefer the SQLite path above for local development and grading.
 
+For **Render + Neon** cloud deploy steps, see **[docs/deployment.md](docs/deployment.md)**.
+
 ## Office-network note (optional)
 
 This project was developed on a machine without Docker admin rights and with unreliable outbound access to managed Postgres. Local default is therefore SQLite; the ORM/migrations remain Postgres-compatible for later deployment.
