@@ -1,0 +1,30 @@
+port_scan:
+  distinct_ports_threshold: 15
+  window_seconds: 60
+
+syn_flood:
+  syn_count_threshold: 50
+  window_seconds: 10
+
+ssh_bruteforce:
+  attempt_threshold: 10
+  window_seconds: 60
+  target_port: 22
+
+flow_tracker:
+  # Retention window should cover the longest rule window.
+  window_seconds: 60
+
+classification:
+  # Confidence upper-bounds for each severity band (exclusive upper edge
+  # except CRITICAL, which covers the remainder up to 1.0).
+  severity_bands:
+    LOW: 0.25
+    MEDIUM: 0.5
+    HIGH: 0.75
+    CRITICAL: 1.0
+  alert_cooldown_seconds: 60
+
+intelligence:
+  # Swap to a real provider name later without changing call sites.
+  provider: "mock"
