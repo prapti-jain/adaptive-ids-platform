@@ -1,9 +1,20 @@
 /**
- * AIDTIP API client — relative URLs (Vite proxies /api and /ws to the backend).
+ * AIDTIP API client.
+ *
+ * Production (Vercel): set VITE_API_BASE_URL / VITE_WS_BASE_URL to the Render backend.
+ * Local dev: leave them unset — relative paths go through the Vite proxy to :8000.
  */
 
+const API_BASE = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
+const WS_BASE = String(import.meta.env.VITE_WS_BASE_URL || '').replace(/\/$/, '')
+
+function apiUrl(path) {
+  // path must start with /
+  return `${API_BASE}${path}`
+}
+
 async function request(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     headers: {
       Accept: 'application/json',
       ...(options.body ? { 'Content-Type': 'application/json' } : {}),
@@ -83,6 +94,10 @@ export function replaySamplePcap(pcapPath) {
 }
 
 export function alertsWebSocketUrl() {
+  if (WS_BASE) {
+    return `${WS_BASE}/ws/alerts`
+  }
+  // Local Vite proxy: same host as the page (e.g. localhost:5174 → /ws → backend).
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   return `${proto}//${window.location.host}/ws/alerts`
 }

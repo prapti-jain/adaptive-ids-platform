@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { alertsWebSocketUrl } from '../api/client'
 
 /**
- * Connect to /ws/alerts and keep a live list of EnrichedAlert payloads.
+ * Connect to /ws/alerts (via VITE_WS_BASE_URL in production, or the Vite
+ * proxy on the current host during local development) and keep a live list
+ * of EnrichedAlert payloads.
  * Newest alerts are prepended. Dedupes by alert.id (updates replace in place).
  */
 export function useAlertStream({ enabled = true, maxItems = 100 } = {}) {

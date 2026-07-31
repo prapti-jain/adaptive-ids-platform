@@ -59,7 +59,12 @@ Postgres/Neon in production (`render_as_batch` is enabled only for SQLite).
 
 ## Frontend (Vercel)
 
-Deploy `frontend/` separately. Set Vite proxy is for local only — in
-production point the API client at the Render URL (or configure a rewrite).
-After the Vercel URL exists, append it to `ALLOWED_ORIGINS` on Render and
-redeploy the backend (no code change required).
+Deploy `frontend/` separately (Root Directory = `frontend`).
+
+1. Set env vars on Vercel (see `frontend/.env.example`):
+   - `VITE_API_BASE_URL=https://adaptive-backend-qmc1.onrender.com`
+   - `VITE_WS_BASE_URL=wss://adaptive-backend-qmc1.onrender.com`
+2. Build: `npm run build` → output `dist`.
+3. After the Vercel URL exists, append it to backend `ALLOWED_ORIGINS` on Render and redeploy the API.
+
+Locally, leave those Vite vars unset so the client uses relative `/api` and `/ws` paths; `frontend/vite.config.js` still proxies them to `127.0.0.1:8000`.
