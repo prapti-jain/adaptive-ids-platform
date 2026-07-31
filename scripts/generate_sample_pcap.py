@@ -87,6 +87,12 @@ def build_packets() -> list:
 
 
 def main() -> int:
+    """Always regenerate the sample PCAP (safe + keeps timestamps fresh).
+
+    Render's filesystem is ephemeral, so the file is usually missing after a
+    deploy/restart. Regenerating every start is cheap (~168 packets) and keeps
+    demo traffic inside default API time windows.
+    """
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     packets = build_packets()
     wrpcap(str(OUTPUT), packets)

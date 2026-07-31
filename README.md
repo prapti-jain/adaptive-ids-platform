@@ -1,88 +1,165 @@
-# AIDTIP — Adaptive Intrusion Detection & Threat Intelligence Platform
+# AIDTIP
 
-AIDTIP is a modular platform for offline PCAP replay (and optional live capture), signature-style intrusion detection, alert scoring, threat-intel enrichment, REST/WebSocket APIs, a SOC-style React dashboard, and printable incident reports.
+**Adaptive Intrusion Detection & Threat Intelligence Platform**
 
-## Architecture
+End-to-end intrusion detection demo: offline PCAP replay → signature detection → scored alerts → mock threat-intel enrichment → REST/WebSocket API → SOC dashboard → printable HTML reports.
 
-See **[docs/architecture.md](docs/architecture.md)** for the pipeline diagram and module map.
+Built as a modular Python + React system that runs locally on SQLite and deploys to Neon Postgres, Render, and Vercel.
 
-Short version: **capture → parse → detect → classify → persist alerts → enrich → API/dashboard → reports**.
+---
 
-## Local development (SQLite — the working path)
+## Live demo
 
-Docker is **not required**. On machines without Docker or with restricted outbound network access, use file-based SQLite.
+| Surface | URL |
+|---------|-----|
+| **SOC dashboard** | [https://adaptive-ids-platform.vercel.app](https://adaptive-ids-platform.vercel.app) |
+| **API** | [https://adaptive-backend-qmc1.onrender.com](https://adaptive-backend-qmc1.onrender.com) |
+| **Health check** | [https://adaptive-backend-qmc1.onrender.com/health](https://adaptive-backend-qmc1.onrender.com/health) |
+| **OpenAPI docs** | [https://adaptive-backend-qmc1.onrender.com/docs](https://adaptive-backend-qmc1.onrender.com/docs) |
+| **Source** | [github.com/prapti-jain/adaptive-ids-platform](https://github.com/prapti-jain/adaptive-ids-platform) |
+
+**Try it:** open the dashboard → **Overview** → **Replay Sample PCAP**. Alerts stream over WebSocket into Live Alerts / Timeline. Generate an HTML report from the Reports API or UI flow.
+
+> Free-tier cold starts: the Render API may take ~30–60s to wake after idle. Refresh once if the first request times out.
+
+---
+
+## What it does
+
+```
+PCAP / live capture → parse → detect → classify & score → persist alerts
+                         ↓
+              mock threat intel enrich → REST + WebSocket → React SOC UI → HTML reports
+```
+
+| Capability | Details |
+|------------|---------|
+| Capture | Offline PCAP replay (primary); optional live sniff where privileges allow |
+| Detection | Port scan, SYN flood, SSH brute force (`backend/config/rules.yaml`) |
+| Alerts | Severity scoring, deduplication, SQLite/Postgres persistence |
+| Intel | Mock IP reputation enrichment (pluggable provider interface) |
+| API | FastAPI REST + live WebSocket alert feed |
+| UI | Dark SOC dashboard — Overview, Live Alerts, Timeline, Top Stats, History |
+| Reports | Time-range HTML incident reports via `/api/reports` |
+
+Architecture notes: **[docs/architecture.md](docs/architecture.md)** · Deploy guide: **[docs/deployment.md](docs/deployment.md)**
+
+---
+
+## Stack
+
+| Layer | Technology |
+|-------|------------|
+| Backend | Python 3, FastAPI, SQLAlchemy, Alembic, Scapy, Uvicorn |
+| Frontend | React (Vite), Tailwind |
+| Local DB | SQLite (`sqlite:///./aidtip.db`) |
+| Production DB | Neon Postgres |
+| Hosting | API on [Render](https://render.com) · UI on [Vercel](https://vercel.com) |
+
+---
+
+## Quick start (local)
+
+Docker is **not** required. Local default is file-based SQLite.
 
 ```bash
+git clone https://github.com/prapti-jain/adaptive-ids-platform.git
 cd adaptive-ids-platform
+
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 cp .env.example .env               # DATABASE_URL=sqlite:///./aidtip.db
 alembic upgrade head
-
-# optional: regenerate sample traffic with recent timestamps
 python scripts/generate_sample_pcap.py
-python scripts/run_pipeline.py
 ```
 
-### API + dashboard
-
 ```bash
-# terminal 1 — backend
+# terminal 1 — API
 uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
 
-# terminal 2 — frontend (uses port 5174 to avoid clashes with other Vite apps)
-cd frontend
-npm install
-npm run dev
+# terminal 2 — dashboard (port 5174)
+cd frontend && npm install && npm run dev
 ```
 
-- API health: http://127.0.0.1:8000/health  
-- Dashboard: http://127.0.0.1:5174/  
-- From the Overview tab, click **Replay Sample PCAP** to drive live WebSocket alerts.
-
-### Reports
-
-```bash
-# create a report for a time range (ISO-8601), then download HTML
-curl -X POST http://127.0.0.1:8000/api/reports \
-  -H 'Content-Type: application/json' \
-  -d '{"start":"2026-01-01T00:00:00Z","end":"2030-01-01T00:00:00Z"}'
-
-curl -o report.html http://127.0.0.1:8000/api/reports/<id>/download
-```
-
-### Tests
+| Local | URL |
+|-------|-----|
+| API health | http://127.0.0.1:8000/health |
+| Dashboard | http://127.0.0.1:5174/ |
+| OpenAPI | http://127.0.0.1:8000/docs |
 
 ```bash
 pytest
 ```
 
-## Docker / Postgres (documented production path)
+---
 
-`docker-compose.yml`, `backend/Dockerfile`, and `frontend/Dockerfile` describe a Postgres + API + Vite stack for environments **with Docker and network access**. They are **documented but unverified** on restricted office laptops without admin rights / Docker Desktop. Prefer the SQLite path above for local development and grading.
+## Production deployment
 
-For **Render + Neon** cloud deploy steps, see **[docs/deployment.md](docs/deployment.md)**.
+| Service | Platform | Live URL |
+|---------|----------|----------|
+| Backend API + WebSocket | Render (Python web service) | https://adaptive-backend-qmc1.onrender.com |
+| Frontend | Vercel (`frontend/` as root) | https://adaptive-ids-platform.vercel.app |
+| Database | Neon Postgres | via `DATABASE_URL` on Render |
 
-## Office-network note (optional)
+### Backend (Render)
 
-This project was developed on a machine without Docker admin rights and with unreliable outbound access to managed Postgres. Local default is therefore SQLite; the ORM/migrations remain Postgres-compatible for later deployment.
+- **Build:** `pip install -r requirements.txt`
+- **Start:** `python scripts/generate_sample_pcap.py && alembic upgrade head && uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+- **Env:** `DATABASE_URL` (Neon, `sslmode=require`), `ALLOWED_ORIGINS` including the Vercel origin, `RULES_CONFIG_PATH=backend/config/rules.yaml`
 
-## Honest scope / gaps vs. a full IDS architecture
+### Frontend (Vercel)
 
-Implemented:
+Root Directory = `frontend`. Build-time env:
 
-- Offline PCAP generation/replay, packet parsing, **3** detection rules (port scan, SYN flood, SSH brute force)
-- Scoring, alert dedup, SQLite/Postgres-compatible persistence, Alembic migrations
-- Mock threat-intel enrichment, REST + WebSocket API, React SOC dashboard, HTML reports
+```bash
+VITE_API_BASE_URL=https://adaptive-backend-qmc1.onrender.com
+VITE_WS_BASE_URL=wss://adaptive-backend-qmc1.onrender.com
+```
 
-Not implemented / simplified:
+Full step-by-step: **[docs/deployment.md](docs/deployment.md)** · Blueprint: `render.yaml` · Process: `Procfile`
 
-- **Detection rules:** ICMP flood, ARP spoofing, DNS spoofing (and other original multi-rule lists beyond the three above) were **not** built
-- **`backend/response/`:** placeholder only — no automated response / recommendation advisor
-- **Live capture:** implemented but requires privileges; PCAP replay is the primary path
-- **Real threat-intel APIs:** mock provider only (`intelligence.provider: mock`)
-- **Auth / multi-tenant / Redis pub-sub:** out of scope
-- **Docker Compose:** present as docs/artifacts, not the verified local run path
-- **Frontend port:** local Vite uses **5174** (not 5173) to avoid collisions with other projects on the same machine
+---
+
+## Project layout
+
+```
+adaptive-ids-platform/
+├── backend/           # FastAPI app, detection, alerts, intel, reports, pipeline
+├── frontend/          # React SOC dashboard
+├── alembic/           # DB migrations (SQLite + Postgres)
+├── scripts/           # sample PCAP + offline pipeline runner
+├── docs/              # architecture, deployment, sample PCAP notes
+├── samples/           # generated sample.pcap (gitignored; created on start)
+├── Procfile           # Render / Heroku-style web process
+└── render.yaml        # Render Blueprint
+```
+
+---
+
+## API highlights
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/health` | Liveness |
+| `GET` | `/api/alerts` | List / filter alerts |
+| `GET` | `/api/stats` | Aggregate SOC stats |
+| `POST` | `/api/pipeline/replay` | Replay sample PCAP |
+| `WS` | `/ws/alerts` | Live alert stream |
+| `POST` | `/api/reports` | Create HTML report for a time range |
+| `GET` | `/api/reports/{id}/download` | Download report |
+
+---
+
+## Scope & honesty
+
+**Implemented:** PCAP generate/replay, packet parse, 3 detection rules, scoring & dedup, SQLite/Postgres persistence, mock intel, REST + WebSocket, React dashboard, HTML reports, cloud deploy (Render + Neon + Vercel).
+
+**Not built / simplified:** broader rule sets (ICMP/ARP/DNS spoofing, etc.), automated response (`backend/response/` placeholder), real threat-intel APIs, auth/multi-tenant/Redis, verified Docker Compose on restricted laptops (Compose files are documented artifacts; SQLite is the verified local path).
+
+---
+
+## License
+
+Educational / portfolio project. Use and adapt freely with attribution appreciated.
