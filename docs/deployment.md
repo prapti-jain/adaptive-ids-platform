@@ -35,10 +35,13 @@ Optional: `PCAP_PATH`, `CAPTURE_INTERFACE` (not needed for API-only deploy).
    ```
    (`$PORT` is injected by Render — do not hardcode `8000`.)
 5. Add the env vars from the table above.
-6. **Release / one-off migrate** (Shell or release command):
+6. **Release / one-off migrate** (Shell or release command), or from your laptop:
    ```bash
-   alembic upgrade head
+   # Override local .env — env var wins over the SQLite URL in .env
+   DATABASE_URL="postgresql://USER:PASSWORD@HOST/DB?sslmode=require" alembic upgrade head
    ```
+   Safe to run locally as long as you can reach Neon over the network (no Docker needed).
+   Confirm with: `DATABASE_URL="..." alembic current`
 7. Deploy. Health check: `GET /health` → `{"status":"ok"}`.
 
 Alternatively, use the repo’s `render.yaml` / `Procfile` if you prefer Blueprint or Heroku-style process definitions.
